@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chicken Health Predictor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-amber-50">
+    <div class="container mx-auto px-4 py-8">
+      <div
+        class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg overflow-hidden"
+      >
+        <div class="relative h-40 bg-amber-200">
+          <img
+            src="https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80"
+            alt="Chicken background"
+            class="w-full h-full object-cover opacity-50"
+          />
+          <h1
+            class="absolute bottom-4 left-4 text-3xl font-bold text-amber-900"
+          >
+            Chicken Health Predictor
+          </h1>
+        </div>
+        <div class="p-6">
+          <p class="text-gray-700 mb-4">
+            Upload an image of chicken faeces to predict its health status.
+          </p>
+          <div class="mb-6">
+            <div
+              class="relative border-2 border-dashed border-gray-300 rounded-lg p-4"
+            >
+              <input
+                type="file"
+                id="fileinput"
+                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+              <div class="text-center">
+                <i class="fas fa-upload text-4xl text-gray-400 mb-2"></i>
+                <p class="text-sm text-gray-500">
+                  Drag and drop an image here or click to upload
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="flex justify-between items-center mb-6">
+            <button
+              id="uload"
+              class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out"
+            >
+              <i class="fas fa-feather-alt mr-2"></i>Upload
+            </button>
+            <button
+              id="train"
+              class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out"
+            >
+              <i class="fas fa-graduation-cap mr-2"></i>Train Model
+            </button>
+            <button
+              id="send"
+              class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out"
+            >
+              <i class="fas fa-egg mr-2"></i>Predict
+            </button>
+          </div>
+          <div class="flex space-x-4">
+            <div class="w-1/2">
+              <h3 class="text-lg font-semibold mb-2 text-amber-800">
+                Image Preview
+              </h3>
+              <div class="border rounded-lg overflow-hidden h-64">
+                <img
+                  id="selected-image"
+                  src="https://via.placeholder.com/300x300?text=No+Image"
+                  alt="Selected image"
+                  class="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+            <div class="w-1/2">
+              <h3 class="text-lg font-semibold mb-2 text-amber-800">
+                Prediction Result
+              </h3>
+              <div
+                id="result"
+                class="border rounded-lg p-4 h-64 overflow-auto bg-gray-50"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      $(document).ready(function () {
+        function readURL(input) {
+          if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+              $("#selected-image").attr("src", e.target.result);
+            };
+            reader.readAsDataURL(input.files[0]);
+          }
+        }
+
+        $("#fileinput").change(function () {
+          readURL(this);
+        });
+
+        $("#uload").click(function () {
+          $("#fileinput").click();
+        });
+
+        $("#send").click(function () {
+          var file = $("#fileinput")[0].files[0];
+          if (file) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+              var img = new Image();
+              img.src = e.target.result;
+              img.onload = function () {
+                var canvas = document.createElement("canvas");
+                var ctx = canvas.getContext("2d");
+                canvas.height = this.height;
+                canvas.width = this.width;
+                ctx.drawImage(this, 0, 0);
+                var base64 = canvas
+                  .toDataURL("image/jpeg")
+                  .replace(/^data:image\/(png|jpg|jpeg);base64,/, "");
+
+                $.ajax({
+                  url: "/predict",
+                  method: "POST",
+                  contentType: "application/json",
+                  data: JSON.stringify({ image: base64 }),
+                  success: function (response) {
+                    $("#result").html(
+                      '<p class="text-lg font-semibold mb-2">Prediction: ' +
+                        response.prediction +
+                        '</p>'
+                    );
+                  },
+                  error: function () {
+                    $("#result").html(
+                      '<p class="text-red-500">Error occurred during prediction.</p>'
+                    );
+                  },
+                });
+              };
+            };
+            reader.readAsDataURL(file);
+          } else {
+            alert("Please select an image first.");
+          }
+        });
+
+        $("#train").click(function () {
+          $("#result").html('<p class="text-blue-500">Training in progress...</p>');
+          $.ajax({
+            url: "/train",
+            method: "POST",
+            success: function (response) {
+              $("#result").html(
+                '<p class="text-green-500">Training completed successfully!</p>'
+              );
+            },
+            error: function () {
+              $("#result").html(
+                '<p class="text-red-500">Error occurred during training.</p>'
+              );
+            },
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
